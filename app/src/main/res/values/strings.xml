@@ -1,5 +1,5 @@
 <resources>
     <string name="app_name">AmpyRocket</string>
-    <string name="accessibility_desc">AmpyRocket usa questo servizio solo per i gesti del launcher: doppio tocco per bloccare lo schermo, aprire la tendina notifiche e le app recenti di sistema. Non legge né raccoglie il contenuto dello schermo.</string>
+    <string name="accessibility_desc">AmpyRocket usa questo servizio per i gesti del launcher (doppio tocco per bloccare lo schermo, tendina notifiche, recenti) e, solo quando chiudi un\'app dal task manager di AmpyRocket, per premere \"Forza arresto\" nella pagina Info app di quell\'app. Non legge, salva né invia il contenuto delle altre schermate.</string>
     <string name="clock_widget">AmpyRocket Clock</string>
 </resources>

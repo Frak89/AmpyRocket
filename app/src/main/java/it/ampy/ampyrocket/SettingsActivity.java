@@ -78,14 +78,19 @@ public final class SettingsActivity extends Activity {
         toggle("Risparmio batteria animazioni (30 fps)","eco_fps",false);
         toggle("Vibrazione al tocco","haptics",true);
 
-        section("04 / GESTI");
+        section("04 / TASK MANAGER");
+        toggle("Chiusura reale con Forza arresto automatico (richiede Accessibilità)","force_stop_auto",true);
+        toggle("Mostra processi e servizi di sistema","task_system",false);
+        toggle("Mostra anche app usate di recente (3 ore)","task_recent",false);
+
+        section("05 / GESTI");
         choice("Scorri in su",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_up","drawer");
         choice("Scorri in giù",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_down","notifications");
         choice("Doppio tocco",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_double","lock");
         choice("Due dita in su",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_two_up","tasks");
         choice("Due dita in giù",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_two_down","quicksettings");
 
-        section("05 / LOCKSCREEN CUSTOM");
+        section("06 / LOCKSCREEN CUSTOM");
         item("Lockscreen AmpyRocket: "+(pr.lockEnabled()?"ATTIVO":"SPENTO"),"Copertina cyberpunk mostrata all'accensione dello schermo, sopra il blocco di sistema (PIN/impronta restano attivi).",()->{
             boolean on=!pr.lockEnabled();
             if(on&&!Perms.overlay(this)){CyberMenu.notice(this,th,"Permesso necessario","Concedi \"Mostra sopra altre app\" per far comparire il lockscreen quando accendi lo schermo.");
@@ -95,21 +100,21 @@ public final class SettingsActivity extends Activity {
         toggle("Notifiche sul lockscreen","lock_notifications",true);
         item("Anteprima lockscreen","",()->startActivity(new Intent(this,LockScreenActivity.class).putExtra("preview",true)));
 
-        section("06 / APP");
+        section("07 / APP");
         item("App nascoste ("+pr.hidden().size()+")","Tocca per mostrarle di nuovo",this::hiddenApps);
         toggle("Aggiungi alla Home le nuove app","auto_add",true);
         toggle("App suggerite nel drawer","suggestions",true);
         item("Ripristina nomi originali","",()->{for(String k:new ArrayList<>(pr.raw().getAll().keySet()))if(k.startsWith("rename_"))pr.raw().edit().remove(k).apply();
             AppRepository.get(this).reloadAsync();Ui.toast(this,"Nomi ripristinati");});
 
-        section("07 / BACKUP");
+        section("08 / BACKUP");
         item("Esporta layout Home","Salva pagine, dock, cartelle in un file JSON",()->{
             Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json")
                 .putExtra(Intent.EXTRA_TITLE,"ampyrocket-layout.json");startActivityForResult(i,REQ_EXPORT);});
         item("Importa layout Home","",()->startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"),REQ_IMPORT));
         item("Ripristina layout predefinito","",()->{pr.put("layout_json",null);pr.put("layout_rev",pr.i("layout_rev",0)+1);Ui.toast(this,"Layout ripristinato");});
 
-        section("08 / INFO");
+        section("09 / INFO");
         item("AmpyRocket 1.0 — Neon Ignition","Launcher cyberpunk della famiglia Ampy (AmpyRAW, AmpyLink).",()->{});
     }
 

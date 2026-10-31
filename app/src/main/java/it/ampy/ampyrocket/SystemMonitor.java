@@ -29,7 +29,7 @@ public final class SystemMonitor {
     }
     public static final class AppLoad {
         public String pkg;public float cpu;public long rssKb;public int procs;
-        public long lastUsed,fgMs;public boolean foreground,fgService,running;
+        public long lastUsed,fgMs,lastStart;public boolean foreground,fgService,running,system,launchable;
         public float activity;      // 0..1 share of foreground time in the last 15 min (standard mode)
         public final float[] cpuHist=new float[HIST],ramHist=new float[HIST];
         public final List<Proc> list=new ArrayList<>();
@@ -66,28 +66,62 @@ public final class SystemMonitor {
     }
 
     /** Full snapshot including apps / processes. Call from a background thread. */
-    public synchronized Snapshot full(boolean includeSystemProcs){
+    // apps the user closed: hidden until they start again (resume / new foreground service)
+    private final Map<String,Long> dismissed=new HashMap<>();
+    public synchronized void dismiss(String pkg){dismissed.put(pkg,System.currentTimeMillis());}
+
+    /**
+     * Full snapshot including apps. includeSystem adds system apps and background
+     * system services; includeRecent also lists apps used in the last 3 hours.
+     */
+    public synchronized Snapshot full(boolean includeSystem,boolean includeRecent){
         Snapshot s=new Snapshot();
         fillBasics(s);
         Map<String,AppLoad> apps=new LinkedHashMap<>();
         usage(apps);
+        if(includeSystem)systemServices(apps);
         selfOnly(s,apps);
         long now=System.currentTimeMillis();
+        AppRepository repo=AppRepository.get(ctx);
         for(AppLoad a:apps.values()){
+            a.launchable=repo.findPkg(a.pkg)!=null;a.system=repo.isSystem(a.pkg);
+            if(!includeSystem&&(!a.launchable||"com.android.systemui".equals(a.pkg)))continue;
+            Long d=dismissed.get(a.pkg);
+            if(d!=null){if(a.lastStart>d){dismissed.remove(a.pkg);}else continue;}
+            boolean show=a.foreground||a.fgService||a.running||includeRecent&&now-a.lastUsed<3*3600_000L;
+            if(!show)continue;
             AppLoad h=appHist.get(a.pkg);
             if(h==null){h=new AppLoad();h.pkg=a.pkg;appHist.put(a.pkg,h);}
-            float cpuV=a.activity*100f;
-            push(h.cpuHist,cpuV);push(h.ramHist,a.rssKb/1024f);
+            push(h.cpuHist,a.activity*100f);push(h.ramHist,a.rssKb/1024f);
             System.arraycopy(h.cpuHist,0,a.cpuHist,0,HIST);System.arraycopy(h.ramHist,0,a.ramHist,0,HIST);
-            if(a.running||a.fgService||a.procs>0||now-a.lastUsed<3*3600_000L)s.apps.add(a);
+            s.apps.add(a);
         }
         Collections.sort(s.apps,(x,y)->{
             if(x.foreground!=y.foreground)return x.foreground?-1:1;
-            if(x.procs>0!=y.procs>0)return x.procs>0?-1:1;
+            if(x.system!=y.system)return x.system?1:-1;
+            if(x.fgService!=y.fgService)return x.fgService?-1:1;
             return Long.compare(y.lastUsed,x.lastUsed);
         });
         s.cpuHist=cpuHist.clone();s.ramHist=ramHist.clone();
         return s;
+    }
+
+    /** Background services (incl. system ones) active in the last 30 minutes, from usage stats. */
+    private void systemServices(Map<String,AppLoad> apps){
+        if(!Perms.usageAccess(ctx)||android.os.Build.VERSION.SDK_INT<29)return;
+        try{UsageStatsManager um=(UsageStatsManager)ctx.getSystemService(Context.USAGE_STATS_SERVICE);
+            long end=System.currentTimeMillis();
+            List<android.app.usage.UsageStats> list=um.queryUsageStats(UsageStatsManager.INTERVAL_DAILY,end-6*3600_000L,end);
+            if(list==null)return;
+            for(android.app.usage.UsageStats u:list){
+                String pkg=u.getPackageName();if(pkg.equals(ctx.getPackageName()))continue;
+                long svc=u.getLastTimeForegroundServiceUsed(),vis=u.getLastTimeVisible();
+                if(end-svc>30*60_000L&&end-vis>30*60_000L)continue;
+                AppLoad a=apps.get(pkg);if(a==null){a=new AppLoad();a.pkg=pkg;apps.put(pkg,a);}
+                a.running=true;a.lastUsed=Math.max(a.lastUsed,Math.max(svc,vis));
+                if(end-svc<30*60_000L){a.lastStart=Math.max(a.lastStart,svc);}
+            }
+        }catch(Throwable ignored){}
     }
 
     private void fillBasics(Snapshot s){
@@ -138,13 +172,13 @@ public final class SystemMonitor {
                 if(pkg==null||pkg.equals(ctx.getPackageName()))continue;
                 AppLoad a=apps.get(pkg);if(a==null){a=new AppLoad();a.pkg=pkg;apps.put(pkg,a);}
                 int type=e.getEventType();long ts=e.getTimeStamp();
-                if(type==UsageEvents.Event.ACTIVITY_RESUMED){resumedAt.put(pkg,ts);a.foreground=true;a.lastUsed=ts;a.running=true;}
+                if(type==UsageEvents.Event.ACTIVITY_RESUMED){resumedAt.put(pkg,ts);a.foreground=true;a.lastUsed=ts;a.running=true;a.lastStart=ts;}
                 else if(type==UsageEvents.Event.ACTIVITY_PAUSED||type==UsageEvents.Event.ACTIVITY_STOPPED){
                     Long r=resumedAt.remove(pkg);a.foreground=false;a.lastUsed=Math.max(a.lastUsed,ts);
                     if(r!=null){long from=Math.max(r,end-win);if(ts>from)a.fgMs+=ts-from;}
                     if(type==UsageEvents.Event.ACTIVITY_STOPPED)a.running=end-ts<30*60_000L;
                 }
-                else if(type==UsageEvents.Event.FOREGROUND_SERVICE_START){a.fgService=true;a.running=true;}
+                else if(type==UsageEvents.Event.FOREGROUND_SERVICE_START){a.fgService=true;a.running=true;a.lastStart=Math.max(a.lastStart,ts);}
                 else if(type==UsageEvents.Event.FOREGROUND_SERVICE_STOP){a.fgService=false;}
             }
         }catch(Throwable ignored){}

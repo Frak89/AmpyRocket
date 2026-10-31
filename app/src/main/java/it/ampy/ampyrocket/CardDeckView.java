@@ -82,7 +82,7 @@ public final class CardDeckView extends View {
         float tx=pad*1.6f+is;k.drawText(ellipsize(c.label.toUpperCase(Locale.ROOT),cw-tx-pad),tx,pad+Ui.dpf(20),tp);
         tp.setTypeface(Ui.MONO);tp.setTextSize(Ui.dpf(9.5f));tp.setColor(th.muted);
         k.drawText(ellipsize(c.pkg,cw-tx-pad),tx,pad+Ui.dpf(36),tp);
-        String state=c.load.foreground?"● IN PRIMO PIANO":c.load.fgService?"◆ SERVIZIO ATTIVO":"◇ IN BACKGROUND";
+        String state=(c.load.system?"⚙ SIS · ":"")+(c.load.foreground?"● IN PRIMO PIANO":c.load.fgService?"◆ SERVIZIO ATTIVO":"◇ IN BACKGROUND");
         tp.setColor(c.load.foreground?th.secondary:c.load.fgService?th.warn:th.accent);tp.setTypeface(Ui.MONO_BOLD);
         k.drawText(state,tx,pad+Ui.dpf(54),tp);
         // activity gauge + graph
