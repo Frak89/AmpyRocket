@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:gravity="center"
+    android:padding="10dp" android:background="@drawable/widget_bg">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="// AMPYROCKET.CHRONO" android:textColor="#FF3AC8"
+        android:textSize="10sp" android:fontFamily="monospace" android:letterSpacing="0.2"/>
+    <TextClock android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:format24Hour="HH:mm" android:format12Hour="hh:mm"
+        android:textColor="#00FFE2" android:textSize="52sp" android:fontFamily="monospace"
+        android:textStyle="bold" android:shadowColor="#FF3AC8" android:shadowDx="3"
+        android:shadowDy="0" android:shadowRadius="1"/>
+    <TextClock android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:format24Hour="EEE dd MMM yyyy" android:format12Hour="EEE dd MMM yyyy"
+        android:textColor="#ECFCFF" android:textSize="13sp" android:fontFamily="monospace"
+        android:letterSpacing="0.15" android:textAllCaps="true"/>
+</LinearLayout>
