@@ -21,7 +21,8 @@ public final class AppDrawerView extends FrameLayout {
     private final Theme th;private final Host host;private final GridView grid;private final EditText search;
     private final GlitchTextView title,bigLetter;private final TextView calc;private final LetterBar bar;
     private final List<AppRepository.App> shown=new ArrayList<>();private final Adapter adapter=new Adapter();
-    private String sort;
+    private String sort;private String tab="all";
+    private final LinearLayout suggest,tabs;private final TextView tabAll,tabMine,tabWork,pause;
 
     public AppDrawerView(Context c,Theme th,Host host){
         super(c);this.th=th;this.host=host;sort=Prefs.get(c).drawerSort();
@@ -49,9 +50,18 @@ public final class AppDrawerView extends FrameLayout {
         calc=Ui.text(c,"",13,th.warn,true);calc.setPadding(Ui.dp(14),Ui.dp(8),Ui.dp(14),Ui.dp(4));calc.setVisibility(GONE);
         col.addView(calc);
 
+        tabs=new LinearLayout(c);tabs.setGravity(Gravity.CENTER_VERTICAL);
+        tabAll=Ui.chip(c,th,"TUTTE",th.accent,v->setTab("all"));tabMine=Ui.chip(c,th,"PERSONALI",th.accent,v->setTab("mine"));
+        tabWork=Ui.chip(c,th,"LAVORO",th.secondary,v->setTab("work"));
+        pause=Ui.chip(c,th,"⏸ PAUSA",th.warn,v->toggleWorkPause());
+        for(TextView t:new TextView[]{tabAll,tabMine,tabWork}){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,-2);lp.rightMargin=Ui.dp(6);tabs.addView(t,lp);}
+        View sp=new View(c);tabs.addView(sp,new LinearLayout.LayoutParams(0,1,1));tabs.addView(pause);
+        LinearLayout.LayoutParams tl=new LinearLayout.LayoutParams(-1,-2);tl.topMargin=Ui.dp(8);col.addView(tabs,tl);
+        suggest=new LinearLayout(c);suggest.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams sgl=new LinearLayout.LayoutParams(-1,-2);sgl.topMargin=Ui.dp(8);col.addView(suggest,sgl);
         FrameLayout body=new FrameLayout(c);
         LinearLayout.LayoutParams bl=new LinearLayout.LayoutParams(-1,0,1);bl.topMargin=Ui.dp(8);col.addView(body,bl);
-        grid=new GridView(c);grid.setNumColumns(Prefs.get(c).columns());grid.setVerticalSpacing(Ui.dp(6));
+        grid=new GridView(c);grid.setNumColumns(cols(c));grid.setVerticalSpacing(Ui.dp(6));
         grid.setSelector(new android.graphics.drawable.ColorDrawable(0));grid.setAdapter(adapter);grid.setClipToPadding(false);
         grid.setPadding(0,0,Ui.dp(26),Ui.dp(40));grid.setVerticalScrollBarEnabled(false);
         body.addView(grid,new LayoutParams(-1,-1));
@@ -91,7 +101,12 @@ public final class AppDrawerView extends FrameLayout {
         AppRepository repo=AppRepository.get(getContext());
         String q=norm(search.getText().toString().trim());
         List<AppRepository.App> all=repo.visible();shown.clear();
+        boolean hasWork=false;for(AppRepository.App a:all)if(a.work){hasWork=true;break;}
+        tabs.setVisibility(hasWork?VISIBLE:GONE);if(!hasWork)tab="all";
+        Ui.setSelected(tabAll,"all".equals(tab));Ui.setSelected(tabMine,"mine".equals(tab));Ui.setSelected(tabWork,"work".equals(tab));
+        pause.setVisibility("work".equals(tab)?VISIBLE:GONE);pause.setText(workPaused()?"▶ RIATTIVA":"⏸ PAUSA");
         for(AppRepository.App a:all){
+            if("mine".equals(tab)&&a.work||"work".equals(tab)&&!a.work)continue;
             if(q.isEmpty()||norm(a.label).contains(q)||a.pkg().toLowerCase(Locale.ROOT).contains(q))shown.add(a);
         }
         if(!q.isEmpty())Collections.sort(shown,(x,y)->Boolean.compare(!norm(x.label).startsWith(q),!norm(y.label).startsWith(q)));
@@ -106,6 +121,51 @@ public final class AppDrawerView extends FrameLayout {
         title.setText("// APP DRAWER ["+shown.size()+"]");
         bar.setVisibility(q.isEmpty()&&"az".equals(sort)?VISIBLE:GONE);
         adapter.notifyDataSetChanged();
+        buildSuggestions(q.isEmpty()&&!"work".equals(tab),all);
+    }
+
+    private static int cols(Context c){
+        boolean land=c.getResources().getConfiguration().orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        return Prefs.get(c).columns()+(land?3:0);
+    }
+    private void setTab(String t){tab=t;refresh();}
+
+    /** "Suggerite": blend of most launched and most recently launched apps. */
+    private void buildSuggestions(boolean show,List<AppRepository.App> all){
+        suggest.removeAllViews();if(!show||!Prefs.get(getContext()).b("suggestions",true))return;
+        AppRepository repo=AppRepository.get(getContext());long now=System.currentTimeMillis();
+        List<AppRepository.App> cand=new ArrayList<>();for(AppRepository.App a:all)if(repo.launches(a)>0)cand.add(a);
+        if(cand.isEmpty())return;
+        Collections.sort(cand,(x,y)->Double.compare(score(repo,y,now),score(repo,x,now)));
+        int cols=cols(getContext());
+        TextView h=Ui.text(getContext(),"✦ SUGGERITE",10,th.secondary,true);h.setPadding(Ui.dp(4),0,0,Ui.dp(4));suggest.addView(h);
+        LinearLayout row=new LinearLayout(getContext());
+        for(int i=0;i<Math.min(cols,cand.size());i++){AppRepository.App a=cand.get(i);
+            IconView v=new IconView(getContext(),th,true);v.bindApp(a);v.setBadge(BadgeListener.count(a.pkg()));
+            v.setOnClickListener(x->host.launch(v,a));v.setOnLongClickListener(x->{Ui.longTick(x);host.appMenu(v,a);return true;});
+            row.addView(v,new LinearLayout.LayoutParams(0,Ui.dp(84),1));}
+        for(int i=cand.size();i<cols;i++)row.addView(new View(getContext()),new LinearLayout.LayoutParams(0,1,1));
+        row.setPadding(0,0,Ui.dp(26),0);suggest.addView(row);
+        View line=new View(getContext());line.setBackgroundColor(Theme.a(th.accent,70));
+        LinearLayout.LayoutParams ll=new LinearLayout.LayoutParams(-1,Ui.dp(1));ll.topMargin=Ui.dp(6);suggest.addView(line,ll);
+    }
+    private static double score(AppRepository r,AppRepository.App a,long now){
+        double hours=Math.max(.1,(now-r.lastLaunch(a))/3600000.0);return Math.log(1+r.launches(a))*2+6/Math.sqrt(hours);
+    }
+
+    private android.os.UserHandle workUser(){
+        for(AppRepository.App a:AppRepository.get(getContext()).all())if(a.work)return a.user;return null;
+    }
+    private boolean workPaused(){
+        android.os.UserHandle u=workUser();if(u==null)return false;
+        try{return ((android.os.UserManager)getContext().getSystemService(Context.USER_SERVICE)).isQuietModeEnabled(u);}catch(Throwable t){return false;}
+    }
+    private void toggleWorkPause(){
+        android.os.UserHandle u=workUser();if(u==null)return;
+        try{boolean ok=((android.os.UserManager)getContext().getSystemService(Context.USER_SERVICE)).requestQuietModeEnabled(!workPaused(),u);
+            if(!ok)Ui.toast(getContext(),"Conferma richiesta dal sistema");}
+        catch(Throwable t){Ui.toast(getContext(),"Serve AmpyRocket come launcher predefinito");}
+        postDelayed(this::refresh,800);
     }
 
     private final class Adapter extends BaseAdapter{
@@ -114,7 +174,7 @@ public final class AppDrawerView extends FrameLayout {
         public long getItemId(int i){return i;}
         public View getView(int i,View cv,ViewGroup parent){
             IconView v=cv instanceof IconView?(IconView)cv:new IconView(getContext(),th,true);
-            int cw=Math.max(1,parent.getWidth()-parent.getPaddingRight())/Math.max(1,Prefs.get(getContext()).columns());
+            int cw=Math.max(1,parent.getWidth()-parent.getPaddingRight())/Math.max(1,cols(getContext()));
             v.setLayoutParams(new AbsListView.LayoutParams(-1,(int)(cw*1.15f)));
             AppRepository.App a=shown.get(i);v.bindApp(a);v.setBadge(BadgeListener.count(a.pkg()));
             v.setOnClickListener(x->host.launch(v,a));

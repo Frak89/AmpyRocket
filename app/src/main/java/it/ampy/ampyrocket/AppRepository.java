@@ -91,6 +91,8 @@ public final class AppRepository {
                 a.key=a.comp.flattenToShortString()+"#"+um.getSerialNumberForUser(u);
                 String rn=pr.rename(a.key);a.label=rn!=null?rn:a.original;
                 try{a.icon=i.getBadgedIcon(0);}catch(Throwable t){a.icon=ctx.getPackageManager().getDefaultActivityIcon();}
+                Drawable packed=IconPack.icon(ctx,a.comp);
+                if(packed!=null)a.icon=a.work?ctx.getPackageManager().getUserBadgedIcon(packed,u):packed;
                 a.installed=i.getFirstInstallTime();
                 if(a.comp.getPackageName().equals(ctx.getPackageName())&&!a.comp.getClassName().endsWith("HomeActivity"))continue;
                 list.add(a);map.put(a.key,a);

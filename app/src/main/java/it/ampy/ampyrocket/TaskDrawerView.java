@@ -37,9 +37,9 @@ public final class TaskDrawerView extends FrameLayout implements CardDeckView.Ho
         LinearLayout head=new LinearLayout(c);head.setGravity(Gravity.CENTER_VERTICAL);
         title=new GlitchTextView(c,th,15,th.accent,true);title.alignLeft();title.setText("// TASK MATRIX");
         head.addView(title,new LinearLayout.LayoutParams(0,-2,1));
-        TextView fxBtn=chip("✦ FX",th.secondary);fxBtn.setOnClickListener(v->fxMenu());head.addView(fxBtn);
-        modeBtn=chip("▤ TABELLA",th.accent);modeBtn.setOnClickListener(v->{tableMode=!tableMode;mode();});head.addView(modeBtn);
-        TextView x=chip("✕",th.bad);x.setOnClickListener(v->onClose.run());head.addView(x);
+        TextView fxBtn=chip("✦ FX",th.secondary,v->fxMenu());head.addView(fxBtn);
+        modeBtn=chip("▤ TABELLA",th.accent,v->{tableMode=!tableMode;mode();});head.addView(modeBtn);
+        TextView x=chip("✕",th.bad,v->onClose.run());head.addView(x);
         col.addView(head);
         meters=new MetersView(c);LinearLayout.LayoutParams ml=new LinearLayout.LayoutParams(-1,Ui.dp(118));ml.topMargin=Ui.dp(6);
         col.addView(meters,ml);
@@ -57,9 +57,8 @@ public final class TaskDrawerView extends FrameLayout implements CardDeckView.Ho
         foot.addView(clear);
         LinearLayout.LayoutParams fl=new LinearLayout.LayoutParams(-1,-2);fl.topMargin=Ui.dp(6);col.addView(foot,fl);
     }
-    private TextView chip(String s,int col){
-        TextView t=Ui.text(getContext(),s,11,col,true);t.setPadding(Ui.dp(10),Ui.dp(8),Ui.dp(10),Ui.dp(8));
-        t.setBackground(new Ui.NeonPanel(th,col,.5f));
+    private TextView chip(String s,int col,View.OnClickListener l){
+        TextView t=Ui.chip(getContext(),th,s,col,l);
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,-2);lp.leftMargin=Ui.dp(6);t.setLayoutParams(lp);return t;
     }
 
@@ -73,7 +72,7 @@ public final class TaskDrawerView extends FrameLayout implements CardDeckView.Ho
     public void close(){open=false;ui.removeCallbacks(poll);}
 
     private void mode(){
-        modeBtn.setText(tableMode?"⧉ CARDS":"▤ TABELLA");
+        modeBtn.setText(tableMode?"⧉ CARDS":"▤ TABELLA");Ui.setSelected(modeBtn,tableMode);
         deck.setVisibility(tableMode?GONE:VISIBLE);tableScroll.setVisibility(tableMode?VISIBLE:GONE);
         if(last!=null)fillTable(last);
     }

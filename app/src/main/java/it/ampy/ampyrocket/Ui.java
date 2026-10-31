@@ -33,7 +33,8 @@ public final class Ui {
     public static TextView button(Context c,Theme th,String s,View.OnClickListener l){
         TextView t=text(c,s,12,th.accent,true);t.setGravity(Gravity.CENTER);
         t.setPadding(dp(14),dp(11),dp(14),dp(11));t.setBackground(new NeonPanel(th,th.accent,.55f));
-        t.setOnClickListener(v->{tick(v);l.onClick(v);});return t;
+        Blink bl=Blink.attach(t,th,th.accent,false,4);
+        t.setOnClickListener(v->{tick(v);bl.burst();l.onClick(v);});return t;
     }
 
     public static void tick(View v){
@@ -86,6 +87,16 @@ public final class Ui {
         @Override public void setAlpha(int a){fill.setAlpha(a);edge.setAlpha(a);}
         @Override public void setColorFilter(ColorFilter f){}
         @Override public int getOpacity(){return PixelFormat.TRANSLUCENT;}
+    }
+
+    /** Neon chip with blink: burst on tap, continuous while "selected". */
+    public static TextView chip(Context c,Theme th,String s,int col,View.OnClickListener l){
+        TextView t=text(c,s,11,col,true);t.setPadding(dp(10),dp(8),dp(10),dp(8));
+        t.setBackground(new NeonPanel(th,col,.5f));Blink bl=Blink.attach(t,th,col,false,4);t.setTag(0x7f0a0003,bl);
+        t.setOnClickListener(v->{tick(v);bl.burst();l.onClick(v);});return t;
+    }
+    public static void setSelected(View chip,boolean on){
+        Object o=chip.getTag(0x7f0a0003);if(o instanceof Blink)((Blink)o).setContinuous(on);
     }
 
     public static boolean atLeast(int api){return Build.VERSION.SDK_INT>=api;}
