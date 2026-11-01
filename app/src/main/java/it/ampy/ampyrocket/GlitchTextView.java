@@ -51,7 +51,7 @@ public class GlitchTextView extends View {
     private int level;
     private final Runnable idle=new Runnable(){@Override public void run(){
         if(!isAttachedToWindow())return;
-        if(level>0&&getVisibility()==VISIBLE){burst=true;burstUntil=SystemClock.uptimeMillis()+90+R.nextInt(160*level);
+        if(level>0&&isShown()&&getWindowVisibility()==VISIBLE&&Power.sinceTouch()<60000){burst=true;burstUntil=SystemClock.uptimeMillis()+90+R.nextInt(160*level);
             if(R.nextInt(4)==0)sc.replay();postInvalidateOnAnimation();}
         scheduleIdle();
     }};
@@ -84,7 +84,10 @@ public class GlitchTextView extends View {
 
     @Override protected void onAttachedToWindow(){super.onAttachedToWindow();scheduleIdle();}
     @Override protected void onDetachedFromWindow(){removeCallbacks(idle);super.onDetachedFromWindow();}
-    private void scheduleIdle(){removeCallbacks(idle);if(level>0)postDelayed(idle,2500+R.nextInt(9000/level));}
+    private void scheduleIdle(){
+        removeCallbacks(idle);if(level<=0||!Power.idleGlitch(getContext()))return;
+        int base=Power.level(getContext())==Power.PERF?2500:9000;postDelayed(idle,base+R.nextInt(9000/level+1)*(base/2500));
+    }
 
     @Override protected void onMeasure(int w,int h){
         float tw=p.measureText(sc.target().isEmpty()?" ":sc.target());

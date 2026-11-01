@@ -111,6 +111,7 @@ public final class HomeActivity extends Activity implements AppRepository.Listen
     private boolean glassBars(){return LiquidGlass.enabled(this)&&pr.b("glass_bars",true);}
 
     @Override public boolean dispatchTouchEvent(MotionEvent e){
+        if(e.getActionMasked()==MotionEvent.ACTION_DOWN&&bg!=null)bg.kick();
         if(drawer.getVisibility()!=View.VISIBLE&&tasks.getVisibility()!=View.VISIBLE){
             if(e.getActionMasked()==MotionEvent.ACTION_DOWN){pointers=1;touchOnEmpty=!hitsChild(e);}
             if(e.getActionMasked()==MotionEvent.ACTION_POINTER_DOWN)pointers=Math.max(pointers,e.getPointerCount());
@@ -542,7 +543,7 @@ public final class HomeActivity extends Activity implements AppRepository.Listen
 
     private void openDrawer(boolean search){
         if(drawer.getVisibility()==View.VISIBLE)return;
-        drawer.setVisibility(View.VISIBLE);drawer.open(search);bg.pulse();
+        drawer.setVisibility(View.VISIBLE);drawer.open(search);bg.setRunning(false);
         drawer.post(()->{
             int cx=drawer.getWidth()/2,cy=drawer.getHeight();
             Animator a=ViewAnimationUtils.createCircularReveal(drawer,cx,cy,0,(float)Math.hypot(cx,cy));a.setDuration(380);a.start();
@@ -553,15 +554,16 @@ public final class HomeActivity extends Activity implements AppRepository.Listen
         if(drawer.getVisibility()!=View.VISIBLE)return;drawer.hideKeyboard();
         int cx=drawer.getWidth()/2,cy=drawer.getHeight();
         Animator a=ViewAnimationUtils.createCircularReveal(drawer,cx,cy,(float)Math.hypot(cx,cy),0);a.setDuration(300);
-        a.addListener(new AnimatorListenerAdapter(){@Override public void onAnimationEnd(Animator x){drawer.setVisibility(View.GONE);}});a.start();
+        a.addListener(new AnimatorListenerAdapter(){@Override public void onAnimationEnd(Animator x){drawer.setVisibility(View.GONE);bg.setRunning(true);bg.kick();}});a.start();
     }
     private void openTasks(){
         if(tasks.getVisibility()==View.VISIBLE)return;
         tasks.setVisibility(View.VISIBLE);tasks.setAlpha(0);tasks.setScaleX(1.08f);tasks.setScaleY(1.08f);
-        tasks.animate().alpha(1).scaleX(1).scaleY(1).setDuration(260).start();tasks.open();
+        tasks.animate().alpha(1).scaleX(1).scaleY(1).setDuration(260).withEndAction(()->bg.setRunning(false)).start();tasks.open();
     }
     private void closeTasks(){
         if(tasks.getVisibility()!=View.VISIBLE)return;tasks.close();
+        bg.setRunning(drawer.getVisibility()!=View.VISIBLE);bg.kick();
         tasks.animate().alpha(0).scaleX(.92f).scaleY(.92f).setDuration(220).withEndAction(()->tasks.setVisibility(View.GONE)).start();
     }
 
@@ -587,8 +589,9 @@ public final class HomeActivity extends Activity implements AppRepository.Listen
     @Override protected void onResume(){
         super.onResume();
         if(!stamp.equals(stamp())){boolean d=drawer.getVisibility()==View.VISIBLE;rebuild();if(d)openDrawer(false);}
-        bg.setRunning(true);
-        for(IconView v:icons)if(v.isShown())v.decode();
+        Power.invalidate();Power.touch();
+        bg.setRunning(drawer.getVisibility()!=View.VISIBLE&&tasks.getVisibility()!=View.VISIBLE);
+        if(Power.idleGlitch(this))for(IconView v:icons)if(v.isShown())v.decode();
         if(tasks.getVisibility()==View.VISIBLE)tasks.open();
     }
     @Override protected void onPause(){super.onPause();bg.setRunning(false);if(tasks.getVisibility()==View.VISIBLE)tasks.close();}

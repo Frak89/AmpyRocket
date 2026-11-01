@@ -68,29 +68,34 @@ public final class SettingsActivity extends Activity {
         choice("Blink pulsanti",new String[]{"SELEZIONATI + TOCCO","SOLO AL TOCCO","SPENTO"},new String[]{"selected","tap","off"},"blink_mode","selected");
         intChoice("Velocità blink",Blink.PERIOD_NAMES,Blink.PERIODS,"blink_period_ms",250);
 
-        section("03 / EFFETTI");
+        section("03 / BATTERIA");
+        intChoice("Modalità energia",Power.NAMES,new int[]{Power.PERF,Power.BAL,Power.MAX},"power_mode",Power.BAL);
+        intChoice("Bilanciato: animazioni attive dopo un tocco per",new String[]{"4 secondi","8 secondi","15 secondi","30 secondi"},new int[]{4,8,15,30},"anim_idle_s",8);
+        toggle("Risparmio massimo con il risparmio energetico di sistema","follow_saver",true);
+
+        section("04 / EFFETTI");
         intChoice("Intensità glitch",new String[]{"OFF","LEGGERO","MEDIO","FORTE"},new int[]{0,1,2,3},"glitch_level",2);
         choice("Transizione pagine",Prefs.PAGE_FX_NAMES,Prefs.PAGE_FX,"page_fx","cube");
         choice("Layout card multitasking",Prefs.DECK_FX_NAMES,Prefs.DECK_FX,"deck_fx","flip3d");
         choice("Chiusura card",Prefs.CLOSE_FX_NAMES,Prefs.CLOSE_FX,"close_fx","genie");
         choice("Animazione apertura app",Prefs.LAUNCH_FX_NAMES,Prefs.LAUNCH_FX,"launch_fx","genie");
         toggle("Wobbly cards (molla Compiz)","wobbly",true);
-        toggle("Risparmio batteria animazioni (30 fps)","eco_fps",false);
+        toggle("Prestazioni: limita a 30 fps","eco_fps",false);
         toggle("Vibrazione al tocco","haptics",true);
 
-        section("04 / TASK MANAGER");
+        section("05 / TASK MANAGER");
         toggle("Chiusura reale con Forza arresto automatico (richiede Accessibilità)","force_stop_auto",true);
         toggle("Mostra processi e servizi di sistema","task_system",false);
         toggle("Mostra anche app usate di recente (3 ore)","task_recent",false);
 
-        section("05 / GESTI");
+        section("06 / GESTI");
         choice("Scorri in su",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_up","drawer");
         choice("Scorri in giù",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_down","notifications");
         choice("Doppio tocco",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_double","lock");
         choice("Due dita in su",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_two_up","tasks");
         choice("Due dita in giù",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_two_down","quicksettings");
 
-        section("06 / LOCKSCREEN CUSTOM");
+        section("07 / LOCKSCREEN CUSTOM");
         item("Lockscreen AmpyRocket: "+(pr.lockEnabled()?"ATTIVO":"SPENTO"),"Copertina cyberpunk mostrata all'accensione dello schermo, sopra il blocco di sistema (PIN/impronta restano attivi).",()->{
             boolean on=!pr.lockEnabled();
             if(on&&!Perms.overlay(this)){CyberMenu.notice(this,th,"Permesso necessario","Concedi \"Mostra sopra altre app\" per far comparire il lockscreen quando accendi lo schermo.");
@@ -100,21 +105,21 @@ public final class SettingsActivity extends Activity {
         toggle("Notifiche sul lockscreen","lock_notifications",true);
         item("Anteprima lockscreen","",()->startActivity(new Intent(this,LockScreenActivity.class).putExtra("preview",true)));
 
-        section("07 / APP");
+        section("08 / APP");
         item("App nascoste ("+pr.hidden().size()+")","Tocca per mostrarle di nuovo",this::hiddenApps);
         toggle("Aggiungi alla Home le nuove app","auto_add",true);
         toggle("App suggerite nel drawer","suggestions",true);
         item("Ripristina nomi originali","",()->{for(String k:new ArrayList<>(pr.raw().getAll().keySet()))if(k.startsWith("rename_"))pr.raw().edit().remove(k).apply();
             AppRepository.get(this).reloadAsync();Ui.toast(this,"Nomi ripristinati");});
 
-        section("08 / BACKUP");
+        section("09 / BACKUP");
         item("Esporta layout Home","Salva pagine, dock, cartelle in un file JSON",()->{
             Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json")
                 .putExtra(Intent.EXTRA_TITLE,"ampyrocket-layout.json");startActivityForResult(i,REQ_EXPORT);});
         item("Importa layout Home","",()->startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"),REQ_IMPORT));
         item("Ripristina layout predefinito","",()->{pr.put("layout_json",null);pr.put("layout_rev",pr.i("layout_rev",0)+1);Ui.toast(this,"Layout ripristinato");});
 
-        section("09 / INFO");
+        section("10 / INFO");
         item("AmpyRocket 1.0 — Neon Ignition","Launcher cyberpunk della famiglia Ampy (AmpyRAW, AmpyLink).",()->{});
     }
 
@@ -148,7 +153,7 @@ public final class SettingsActivity extends Activity {
     }
     private void intChoice(String t,String[] names,int[] vals,String key,int def){
         int cur=pr.i(key,def),sel=0;for(int i=0;i<vals.length;i++)if(vals[i]==cur)sel=i;final int s=sel;
-        row(t,null,names[sel],th.accent,()->CyberMenu.choose(this,th,t,names,s,i->{pr.put(key,vals[i]);build();}));
+        row(t,null,names[sel],th.accent,()->CyberMenu.choose(this,th,t,names,s,i->{pr.put(key,vals[i]);Power.invalidate();build();}));
     }
     private void floatChoice(String t,String[] names,float[] vals,String key,float def){
         float cur=pr.f(key,def);int sel=0;for(int i=0;i<vals.length;i++)if(Math.abs(vals[i]-cur)<.01f)sel=i;final int s=sel;

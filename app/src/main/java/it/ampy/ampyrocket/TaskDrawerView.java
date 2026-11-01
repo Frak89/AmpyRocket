@@ -24,7 +24,7 @@ public final class TaskDrawerView extends FrameLayout implements CardDeckView.Ho
     private final Runnable poll=new Runnable(){@Override public void run(){
         if(!open)return;
         bg.post(()->{Prefs pr=Prefs.get(getContext());SystemMonitor.Snapshot s=SystemMonitor.get(getContext()).full(pr.b("task_system",false),pr.b("task_recent",false));ui.post(()->apply(s));});
-        ui.postDelayed(this,2000);
+        ui.postDelayed(this,Power.taskPollMs(getContext()));
     }};
 
     public TaskDrawerView(Context c,Theme th,Runnable onClose){

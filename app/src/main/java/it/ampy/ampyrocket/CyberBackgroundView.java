@@ -23,22 +23,35 @@ public final class CyberBackgroundView extends View {
 
     public void reload(){
         Prefs pr=Prefs.get(getContext());th=Theme.load(getContext());mode=pr.background();
-        scan=pr.scanlines();dim=pr.wallpaperDim();eco=pr.ecoFps();px=null;dropY=null;sx=null;invalidate();
+        scan=pr.scanlines();dim=pr.wallpaperDim();eco=pr.ecoFps();px=null;dropY=null;sx=null;dimPaint=null;invalidate();
     }
-    public void setRunning(boolean r){running=r;if(r)postInvalidateOnAnimation();}
-    public void setParallax(float f){parallax=f;}
+    public void setRunning(boolean r){boolean was=running;running=r;if(r&&!was)invalidate();}
+    /** User interaction: wake the animation (balanced mode freezes it when idle). */
+    public void kick(){Power.touch();if(running&&!scheduled)invalidate();}
+    private boolean scheduled=false;
+    private Paint dimPaint,sunPaint,scanPaint,beamPaint;private Path hexPath;private final char[] one=new char[1];
+    private void buildPaints(int w,int h){
+        dimPaint=new Paint();dimPaint.setShader(new LinearGradient(0,0,0,h,
+            new int[]{Theme.a(th.top,dim*255/100),Theme.a(th.bg,dim*230/100),Theme.a(th.bottom,Math.min(255,dim*300/100))},null,Shader.TileMode.CLAMP));
+        float horizon=h*.62f,sunR=w*.22f;
+        sunPaint=new Paint(Paint.ANTI_ALIAS_FLAG);sunPaint.setShader(new LinearGradient(0,horizon-sunR*1.6f,0,horizon,Theme.a(th.warn,150),Theme.a(th.secondary,140),Shader.TileMode.CLAMP));
+        Bitmap sb=Bitmap.createBitmap(1,(int)Math.max(2,Ui.dpf(4)),Bitmap.Config.ARGB_8888);sb.setPixel(0,0,0x16000000);sb.setPixel(0,1,0x10000000);
+        scanPaint=new Paint();scanPaint.setShader(new BitmapShader(sb,Shader.TileMode.REPEAT,Shader.TileMode.REPEAT));
+        beamPaint=new Paint();beamPaint.setShader(new LinearGradient(0,-Ui.dpf(60),0,0,0x00000000,Theme.a(th.accent,22),Shader.TileMode.CLAMP));
+        float r=Ui.dpf(26);hexPath=new Path();
+        for(int k=0;k<6;k++){double a=Math.PI/3*k+Math.PI/6;float hx=(float)(r*Math.cos(a)),hy=(float)(r*Math.sin(a));if(k==0)hexPath.moveTo(hx,hy);else hexPath.lineTo(hx,hy);}
+        hexPath.close();
+    }
+    public void setParallax(float f){if(f!=parallax){parallax=f;if(!scheduled)invalidate();}}
     public void pulse(){pulse=1f;postInvalidateOnAnimation();}
 
-    @Override protected void onSizeChanged(int w,int h,int ow,int oh){px=null;dropY=null;sx=null;scanBmp=null;}
+    @Override protected void onSizeChanged(int w,int h,int ow,int oh){px=null;dropY=null;sx=null;scanBmp=null;dimPaint=null;}
 
     @Override protected void onDraw(Canvas c){
         int w=getWidth(),h=getHeight();if(w==0)return;
+        scheduled=false;if(dimPaint==null)buildPaints(w,h);
         long now=SystemClock.uptimeMillis();float t=now/1000f;
-        // wallpaper dimming + theme gradient
-        p.setShader(new LinearGradient(0,0,0,h,
-            new int[]{Theme.a(th.top,dim*255/100),Theme.a(th.bg,dim*230/100),Theme.a(th.bottom,Math.min(255,dim*300/100))},
-            null,Shader.TileMode.CLAMP));
-        c.drawRect(0,0,w,h,p);p.setShader(null);
+        c.drawRect(0,0,w,h,dimPaint);
         switch(mode){
             case "grid":drawSynth(c,w,h,t);break;
             case "rain":drawRain(c,w,h);break;
@@ -55,19 +68,21 @@ public final class CyberBackgroundView extends View {
             p.setColor(Theme.a(th.secondary,(int)(110*pulse)));c.drawCircle(w/2f,h*.55f,r*.8f,p);
             p.setStyle(Paint.Style.FILL);pulse-=.035f;
         }
-        if(running&&!"wallpaper".equals(mode)||pulse>0){
-            if(eco){long d=now-last;last=now;postInvalidateDelayed(Math.max(0,33-d));}
-            else postInvalidateOnAnimation();
-        }else if(scan&&running){postInvalidateDelayed(120);}
+        long frame=Power.frameMs(getContext());
+        if(pulse>0&&frame<0)frame=42;
+        boolean animated=!"wallpaper".equals(mode)||scan;
+        if(running&&animated&&frame>=0&&isShown()){
+            scheduled=true;
+            if(frame==0)postInvalidateOnAnimation();else postInvalidateDelayed(Math.max(1,frame-(SystemClock.uptimeMillis()-now)));
+        }
     }
 
     private void drawSynth(Canvas c,int w,int h,float t){
         float horizon=h*.62f;
         // neon sun
         float sunR=w*.22f,sx0=w/2f-parallax*w*.08f;
-        p.setShader(new LinearGradient(0,horizon-sunR*1.6f,0,horizon,Theme.a(th.warn,150),Theme.a(th.secondary,140),Shader.TileMode.CLAMP));
         c.save();c.clipRect(0,0,w,horizon);
-        c.drawCircle(sx0,horizon-sunR*.35f,sunR,p);p.setShader(null);
+        c.drawCircle(sx0,horizon-sunR*.35f,sunR,sunPaint);
         p.setColor(Theme.a(th.bg,200));
         for(int i=0;i<7;i++){float y=horizon-sunR*.35f+i*sunR*.16f-sunR*.1f;c.drawRect(0,y,w,y+Ui.dpf(1+i*.8f),p);}
         c.restore();
@@ -113,7 +128,7 @@ public final class CyberBackgroundView extends View {
                 if(rnd.nextInt(30)==0)dropChars[i][row]=GlitchTextView.GLYPHS.charAt(rnd.nextInt(GlitchTextView.GLYPHS.length()));
                 int a=(int)(220*(1-k/(float)trail));
                 p.setColor(k==0?Theme.a(th.fg,240):Theme.a(i%7==0?th.secondary:th.accent,a));
-                c.drawText(String.valueOf(dropChars[i][row]),x,y,p);
+                one[0]=dropChars[i][row];c.drawText(one,0,1,x,y,p);
             }
         }
     }
@@ -137,18 +152,16 @@ public final class CyberBackgroundView extends View {
     }
 
     private void drawHex(Canvas c,int w,int h,float t){
-        float r=Ui.dpf(26),hw=(float)(Math.sqrt(3)*r);Path hex=new Path();
+        float r=Ui.dpf(26),hw=(float)(Math.sqrt(3)*r);
         p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Ui.dpf(1));
         int row=0;
         for(float y=-r;y<h+r;y+=r*1.5f,row++){
             for(float x=(row%2==0?0:hw/2)-parallax*hw;x<w+hw;x+=hw){
-                hex.reset();
-                for(int k=0;k<6;k++){double a=Math.PI/3*k+Math.PI/6;
-                    float hx=(float)(x+r*Math.cos(a)),hy=(float)(y+r*Math.sin(a));
-                    if(k==0)hex.moveTo(hx,hy);else hex.lineTo(hx,hy);}hex.close();
+                c.save();c.translate(x,y);Path hex=hexPath;
                 float wave=(float)(.5+.5*Math.sin(t*1.6-(x+y)/(w*.35)));
                 p.setColor(Theme.a(wave>.85f?th.secondary:th.accent,(int)(18+wave*70)));c.drawPath(hex,p);
                 if(wave>.97f){p.setStyle(Paint.Style.FILL);p.setColor(Theme.a(th.accent,40));c.drawPath(hex,p);p.setStyle(Paint.Style.STROKE);}
+                c.restore();
             }
         }
         p.setStyle(Paint.Style.FILL);
@@ -166,14 +179,8 @@ public final class CyberBackgroundView extends View {
     }
 
     private void drawScan(Canvas c,int w,int h,float t){
-        if(scanBmp==null){
-            scanBmp=Bitmap.createBitmap(1,(int)Ui.dpf(4),Bitmap.Config.ARGB_8888);
-            scanBmp.setPixel(0,0,0x16000000);scanBmp.setPixel(0,1,0x10000000);
-        }
-        Paint sp=new Paint();sp.setShader(new BitmapShader(scanBmp,Shader.TileMode.REPEAT,Shader.TileMode.REPEAT));
-        c.drawRect(0,0,w,h,sp);
+        c.drawRect(0,0,w,h,scanPaint);
         float y=(t*.12f%1f)*h;
-        p.setShader(new LinearGradient(0,y-Ui.dpf(60),0,y,0x00000000,Theme.a(th.accent,22),Shader.TileMode.CLAMP));
-        c.drawRect(0,y-Ui.dpf(60),w,y,p);p.setShader(null);
+        c.save();c.translate(0,y);c.drawRect(0,-Ui.dpf(60),w,0,beamPaint);c.restore();
     }
 }

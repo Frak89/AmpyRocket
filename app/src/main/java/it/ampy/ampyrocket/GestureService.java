@@ -30,7 +30,14 @@ public final class GestureService extends AccessibilityService {
         "forzar detención","forzar cierre","stopp erzwingen","beenden erzwingen","forçar parada","forçar paragem"};
     private static final String[] OK={"ok","forza arresto","force stop","arresta","sì","si","yes","conferma","accetta"};
 
-    @Override protected void onServiceConnected(){live=this;}
+    @Override protected void onServiceConnected(){live=this;listen(false);}
+
+    /** Receive window events only while a force-stop job runs: zero wake-ups the rest of the time. */
+    private void listen(boolean on){
+        try{android.accessibilityservice.AccessibilityServiceInfo i=getServiceInfo();if(i==null)return;
+            i.eventTypes=on?AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED|AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED:0;
+            i.notificationTimeout=on?150:1000;setServiceInfo(i);}catch(Throwable ignored){}
+    }
     @Override public boolean onUnbind(Intent i){live=null;return super.onUnbind(i);}
     @Override public void onInterrupt(){}
 
@@ -52,7 +59,8 @@ public final class GestureService extends AccessibilityService {
         GestureService s=live;
         if(s==null){queue.clear();current=null;return;}
         current=queue.poll();
-        if(current==null){finish(s);return;}
+        if(current==null){s.listen(false);finish(s);return;}
+        s.listen(true);
         step=OPEN;stepAt=System.currentTimeMillis();
         try{s.startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+current))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_NO_HISTORY|Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS));

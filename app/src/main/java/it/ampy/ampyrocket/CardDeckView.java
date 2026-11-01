@@ -218,7 +218,7 @@ public final class CardDeckView extends View {
             p.setAlpha((int)(255*alpha));canvas.drawBitmap(bmp,0,0,p);
             if(isFocus){Paint e=new Paint(Paint.ANTI_ALIAS_FLAG);e.setStyle(Paint.Style.STROKE);e.setStrokeWidth(Ui.dpf(2));
                 e.setColor(Theme.a(th.accent,(int)(120+100*Math.sin(System.currentTimeMillis()/300.0))));
-                canvas.drawRect(-Ui.dpf(4),-Ui.dpf(4),cw+Ui.dpf(4),ch+Ui.dpf(4),e);anim=true;}
+                canvas.drawRect(-Ui.dpf(4),-Ui.dpf(4),cw+Ui.dpf(4),ch+Ui.dpf(4),e);if(Power.continuousFx(getContext()))anim=true;}
             canvas.restore();
         }
         // counter

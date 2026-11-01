@@ -23,7 +23,7 @@ public final class Blink extends Drawable implements Runnable {
     public Blink(Context c,Theme th,int color,boolean continuous,float radiusDp){
         this.th=th;this.color=color;this.continuous=continuous;this.radius=Ui.dpf(radiusDp);
         Prefs pr=Prefs.get(c);period=Math.max(40,pr.i("blink_period_ms",250));String mode=pr.s("blink_mode","selected");
-        enabled=!"off".equals(mode);allowContinuous="selected".equals(mode);
+        enabled=!"off".equals(mode);allowContinuous="selected".equals(mode)&&Power.level(c)!=Power.MAX;
     }
 
     public void setContinuous(boolean on){continuous=on;invalidateSelf();}

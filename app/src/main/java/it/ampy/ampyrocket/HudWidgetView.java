@@ -16,8 +16,9 @@ public final class HudWidgetView extends View {
     private final Handler ui=new Handler(android.os.Looper.getMainLooper());private Handler bgH;
     private final Runnable poll=new Runnable(){@Override public void run(){
         if(!isAttachedToWindow())return;
+        if(!isShown()||getWindowVisibility()!=VISIBLE||!getGlobalVisibleRect(new Rect())){ui.postDelayed(this,Power.hudPollMs(getContext()));return;}
         bgH.post(()->{SystemMonitor.Snapshot s=SystemMonitor.get(getContext()).quick();ui.post(()->{snap=s;invalidate();});});
-        ui.postDelayed(this,2000);
+        ui.postDelayed(this,Power.hudPollMs(getContext()));
     }};
 
     public HudWidgetView(Context c,Theme th){

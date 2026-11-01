@@ -67,7 +67,7 @@ public final class SystemMonitor {
 
     /** Full snapshot including apps / processes. Call from a background thread. */
     // apps the user closed: hidden until they start again (resume / new foreground service)
-    private final Map<String,Long> dismissed=new HashMap<>();
+    private final Map<String,Long> dismissed=new HashMap<>();private boolean recentWindow;
     public synchronized void dismiss(String pkg){dismissed.put(pkg,System.currentTimeMillis());}
 
     /**
@@ -78,7 +78,7 @@ public final class SystemMonitor {
         Snapshot s=new Snapshot();
         fillBasics(s);
         Map<String,AppLoad> apps=new LinkedHashMap<>();
-        usage(apps);
+        recentWindow=includeRecent;usage(apps);
         if(includeSystem)systemServices(apps);
         selfOnly(s,apps);
         long now=System.currentTimeMillis();
@@ -163,7 +163,7 @@ public final class SystemMonitor {
     private void usage(Map<String,AppLoad> apps){
         if(!Perms.usageAccess(ctx))return;
         UsageStatsManager um=(UsageStatsManager)ctx.getSystemService(Context.USAGE_STATS_SERVICE);
-        long end=System.currentTimeMillis(),begin=end-3*3600_000L,win=15*60_000L;
+        long end=System.currentTimeMillis(),begin=end-(recentWindow?3*3600_000L:90*60_000L),win=15*60_000L;
         Map<String,Long> resumedAt=new HashMap<>();
         try{
             UsageEvents ev=um.queryEvents(begin,end);UsageEvents.Event e=new UsageEvents.Event();
