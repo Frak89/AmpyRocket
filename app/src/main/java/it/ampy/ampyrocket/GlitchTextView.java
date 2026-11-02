@@ -23,7 +23,7 @@ public class GlitchTextView extends View {
         private long start;public int stepMs=28,spreadMs=420;
         public void set(String s,boolean animate){
             if(s==null)s="";target=s;shown=s.toCharArray();lockAt=new long[s.length()];
-            start=SystemClock.uptimeMillis();
+            start=SystemClock.uptimeMillis();if(spreadMs<=0)animate=false;
             for(int i=0;i<lockAt.length;i++)
                 lockAt[i]=animate?start+(long)(spreadMs*(i+1f)/Math.max(1,lockAt.length))+R.nextInt(120):0;
         }
@@ -61,6 +61,7 @@ public class GlitchTextView extends View {
         level=Prefs.get(c).glitch();
         textSize=sizeSp*getResources().getDisplayMetrics().scaledDensity;
         p.setTextSize(textSize);p.setTypeface(bold?Ui.MONO_BOLD:Ui.MONO);p.setLetterSpacing(.08f);
+        sc.spreadMs=(int)Anim.ms(c,"glitch");
     }
     public GlitchTextView alignLeft(){center=false;return this;}
     public void setColor(int c){color=c;invalidate();}

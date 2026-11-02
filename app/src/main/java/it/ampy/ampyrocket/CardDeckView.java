@@ -226,7 +226,7 @@ public final class CardDeckView extends View {
         String cnt=String.format(Locale.US,"[%02d / %02d]",Math.min(cards.size(),Math.round(pos)+1),cards.size());
         canvas.drawText(cnt,(getWidth()-tp.measureText(cnt))/2,getHeight()-Ui.dpf(8),tp);
         if(dragY<-ch*.2f){tp.setColor(th.bad);String k="▲ RILASCIA PER CHIUDERE";canvas.drawText(k,(getWidth()-tp.measureText(k))/2,Ui.dpf(18),tp);}
-        if(anim)postInvalidateOnAnimation();
+        if(anim)postInvalidateOnAnimation();else lastFrame=0;
     }
 
     private void drawClosing(Canvas canvas,Card c,Bitmap bmp,Matrix mm,float alpha){
@@ -261,20 +261,24 @@ public final class CardDeckView extends View {
     }
 
     /** Advances springs/animations; returns true while something moves. */
+    private long lastFrame=0;
     private boolean physics(){
         boolean moving=false;
+        long nowF=android.os.SystemClock.uptimeMillis();float dt=lastFrame==0?16:Math.min(80,nowF-lastFrame);lastFrame=nowF;
+        Context cx=getContext();long flipMs=Anim.ms(cx,"card_flip"),closeMs=Anim.ms(cx,"card_close"),snapMs=Anim.ms(cx,"card_snap");
+        float snapK=snapMs<=0?1f:(float)(1-Math.exp(-dt/(snapMs/4f)));
         if(!draggingX){
             if(Math.abs(vel)>.0005f){pos+=vel;vel*=.9f;moving=true;if(Math.abs(vel)<.01f){target=Math.round(pos);vel=0;}}
             else if(target<0)target=Math.round(pos);
             target=Math.max(0,Math.min(cards.size()-1,target));
-            if(vel==0&&Math.abs(target-pos)>.001f){pos+=(target-pos)*.2f;moving=true;}else if(vel==0)pos=target;
+            if(vel==0&&Math.abs(target-pos)>.001f){pos+=(target-pos)*snapK;moving=true;}else if(vel==0)pos=target;
         }
         if(!draggingY&&dragY!=0){dragY*=.75f;if(Math.abs(dragY)<1)dragY=0;moving=true;}
         if(wobble!=0){wobble*=-.82f;if(Math.abs(wobble)<.002f)wobble=0;moving=true;}
         Iterator<Card> it=cards.iterator();
         while(it.hasNext()){Card c=it.next();
-            if(Math.abs(c.flip-c.flipTarget)>.01f){c.flip+=(c.flipTarget-c.flip)*.16f;moving=true;}else c.flip=c.flipTarget;
-            if(c.closing>=0){c.closing+=.035f;moving=true;if(c.closing>=1){it.remove();host.kill(c.pkg);
+            if(Math.abs(c.flip-c.flipTarget)>.01f){float st=flipMs<=0?1f:dt/flipMs;c.flip+=Math.signum(c.flipTarget-c.flip)*Math.min(st,Math.abs(c.flipTarget-c.flip));moving=true;}else c.flip=c.flipTarget;
+            if(c.closing>=0){c.closing+=closeMs<=0?1f:dt/closeMs;moving=true;if(c.closing>=1){it.remove();host.kill(c.pkg);
                 pos=Math.max(0,Math.min(pos,cards.size()-1));target=Math.round(pos);}}
         }
         return moving;

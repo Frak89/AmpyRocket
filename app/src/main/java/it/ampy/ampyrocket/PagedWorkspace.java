@@ -40,7 +40,7 @@ public final class PagedWorkspace extends ViewGroup {
     public void snapTo(int page,boolean anim){
         page=Math.max(0,Math.min(getChildCount()-1,page));int w=getWidth();
         boolean changed=page!=current;current=page;
-        if(anim){scroller.startScroll(getScrollX(),0,page*w-getScrollX(),0,420);postInvalidateOnAnimation();}
+        if(anim){long d=Anim.ms(getContext(),"page");if(d<=0){scrollTo(page*w,0);applyFx();}else scroller.startScroll(getScrollX(),0,page*w-getScrollX(),0,(int)d);postInvalidateOnAnimation();}
         else{scrollTo(page*w,0);applyFx();}
         if(changed&&listener!=null)listener.onPageSelected(page);
     }

@@ -44,7 +44,7 @@ public final class HomeActivity extends Activity implements AppRepository.Listen
 
     private String stamp(){
         return pr.theme()+pr.columns()+pr.rows()+pr.iconScale()+pr.labels()+pr.background()+pr.scanlines()+pr.wallpaperDim()+
-            pr.glitch()+pr.showSearch()+pr.dockCount()+pr.s("icon_style","neon")+pr.pageFx()+pr.ecoFps()+pr.i("layout_rev",0)+pr.s("menu_style","glass")+pr.b("glass_bars",true)+pr.s("blink_mode","selected")+pr.i("blink_period_ms",250);
+            pr.glitch()+pr.showSearch()+pr.dockCount()+pr.s("icon_style","neon")+pr.pageFx()+pr.ecoFps()+pr.i("layout_rev",0)+pr.i("visual_rev",0)+pr.s("menu_style","glass")+pr.b("glass_bars",true)+pr.s("blink_mode","selected")+pr.i("blink_period_ms",250);
     }
 
     private void build(){
@@ -200,12 +200,13 @@ public final class HomeActivity extends Activity implements AppRepository.Listen
             int[] rl=new int[2];root.getLocationOnScreen(rl);
             RectF small=new RectF(r.left-rl[0],r.top-rl[1],r.right-rl[0],r.bottom-rl[1]);
             RectF big=new RectF(0,0,root.getWidth(),root.getHeight());
-            GenieFx.Overlay o=new GenieFx.Overlay(this,card,big,small,true,320,th.accent,null);
+            long ld=Anim.ms(this,"launch");
+            GenieFx.Overlay o=new GenieFx.Overlay(this,card,big,small,true,Math.max(1,ld),th.accent,null);
             root.addView(o,new FrameLayout.LayoutParams(-1,-1));
             root.postDelayed(()->{
                 repo.launch(a,r,ActivityOptions.makeCustomAnimation(this,android.R.anim.fade_in,android.R.anim.fade_out).toBundle());
                 root.postDelayed(()->root.removeView(o),600);
-            },300);
+            },Math.max(0,ld-20));
         }else{
             Bundle opts=null;
             if(v!=null&&r!=null){
@@ -382,7 +383,7 @@ public final class HomeActivity extends Activity implements AppRepository.Listen
                 else if(!dragMoved&&Math.hypot(e.getX()-dragSX,e.getY()-dragSY)>Ui.dp(18)){
                     dragMoved=true;if(openMenu!=null)openMenu.dismiss();
                     if(dragFrom==-3)closeDrawer();if(dragView!=null)dragView.setAlpha(.25f);
-                    dropBar.setVisibility(View.VISIBLE);dropBar.setAlpha(0);dropBar.animate().alpha(1).setDuration(150).start();
+                    dropBar.setVisibility(View.VISIBLE);dropBar.setAlpha(0);dropBar.animate().alpha(1).setDuration(Anim.ms(this,"dropbar")).start();
                     dropBar.getChildAt(0).setVisibility(dragFrom==-3?View.GONE:View.VISIBLE);
                     bg.pulse();
                 }
@@ -396,7 +397,7 @@ public final class HomeActivity extends Activity implements AppRepository.Listen
             case DragEvent.ACTION_DROP:return drop(e.getX(),e.getY());
             case DragEvent.ACTION_DRAG_ENDED:
                 root.removeCallbacks(edgeFlip);edgeDir=0;
-                if(dropBar.getVisibility()==View.VISIBLE)dropBar.animate().alpha(0).setDuration(150).withEndAction(()->dropBar.setVisibility(View.GONE)).start();
+                if(dropBar.getVisibility()==View.VISIBLE)dropBar.animate().alpha(0).setDuration(Anim.ms(this,"dropbar")).withEndAction(()->dropBar.setVisibility(View.GONE)).start();
                 if(dragView!=null)dragView.setAlpha(1f);dragKey=null;dragView=null;return true;
         }
         return true;
@@ -484,7 +485,7 @@ public final class HomeActivity extends Activity implements AppRepository.Listen
             tx.addView(Ui.text(this,Math.max(1,(int)Math.ceil(cw/cell))+" × "+Math.max(1,(int)Math.ceil(ch/cell)),10.5f,th.muted,false));
             row.addView(tx,new LinearLayout.LayoutParams(0,-2,1));
             Blink bl=Blink.attach(row,th,th.accent,false,4);
-            row.setOnClickListener(x->{Ui.tick(x);bl.burst();x.postDelayed(()->{d.dismiss();addWidget(info);},160);});
+            row.setOnClickListener(x->{Ui.tick(x);bl.burst();x.postDelayed(()->{d.dismiss();addWidget(info);},Anim.ms(this,"menu"));});
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=Ui.dp(5);col.addView(row,lp);
         }
         d.setContentView(box);
@@ -546,25 +547,25 @@ public final class HomeActivity extends Activity implements AppRepository.Listen
         drawer.setVisibility(View.VISIBLE);drawer.open(search);bg.setRunning(false);
         drawer.post(()->{
             int cx=drawer.getWidth()/2,cy=drawer.getHeight();
-            Animator a=ViewAnimationUtils.createCircularReveal(drawer,cx,cy,0,(float)Math.hypot(cx,cy));a.setDuration(380);a.start();
-            drawer.setTranslationY(Ui.dp(40));drawer.animate().translationY(0).setDuration(380).start();
+            Animator a=ViewAnimationUtils.createCircularReveal(drawer,cx,cy,0,(float)Math.hypot(cx,cy));long od=Anim.ms(this,"drawer_open");a.setDuration(od);a.start();
+            drawer.setTranslationY(od>0?Ui.dp(40):0);drawer.animate().translationY(0).setDuration(od).start();
         });
     }
     @Override public void closeDrawer(){
         if(drawer.getVisibility()!=View.VISIBLE)return;drawer.hideKeyboard();
         int cx=drawer.getWidth()/2,cy=drawer.getHeight();
-        Animator a=ViewAnimationUtils.createCircularReveal(drawer,cx,cy,(float)Math.hypot(cx,cy),0);a.setDuration(300);
+        Animator a=ViewAnimationUtils.createCircularReveal(drawer,cx,cy,(float)Math.hypot(cx,cy),0);a.setDuration(Anim.ms(this,"drawer_close"));
         a.addListener(new AnimatorListenerAdapter(){@Override public void onAnimationEnd(Animator x){drawer.setVisibility(View.GONE);bg.setRunning(true);bg.kick();}});a.start();
     }
     private void openTasks(){
         if(tasks.getVisibility()==View.VISIBLE)return;
         tasks.setVisibility(View.VISIBLE);tasks.setAlpha(0);tasks.setScaleX(1.08f);tasks.setScaleY(1.08f);
-        tasks.animate().alpha(1).scaleX(1).scaleY(1).setDuration(260).withEndAction(()->bg.setRunning(false)).start();tasks.open();
+        tasks.animate().alpha(1).scaleX(1).scaleY(1).setDuration(Anim.ms(this,"tasks_open")).withEndAction(()->bg.setRunning(false)).start();tasks.open();
     }
     private void closeTasks(){
         if(tasks.getVisibility()!=View.VISIBLE)return;tasks.close();
         bg.setRunning(drawer.getVisibility()!=View.VISIBLE);bg.kick();
-        tasks.animate().alpha(0).scaleX(.92f).scaleY(.92f).setDuration(220).withEndAction(()->tasks.setVisibility(View.GONE)).start();
+        tasks.animate().alpha(0).scaleX(.92f).scaleY(.92f).setDuration(Anim.ms(this,"tasks_close")).withEndAction(()->tasks.setVisibility(View.GONE)).start();
     }
 
     @Override public void onBackPressed(){

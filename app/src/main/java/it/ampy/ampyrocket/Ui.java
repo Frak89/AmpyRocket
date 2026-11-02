@@ -53,21 +53,46 @@ public final class Ui {
     }
     public static void toast(Context c,String s){Toast.makeText(c,s,Toast.LENGTH_SHORT).show();}
 
+    public static final String[] SHAPES={"chamfer","double","rounded","pill","square","hex","slant","tab"};
+    public static final String[] SHAPE_NAMES={"SMUSSATO CYBER (2 angoli)","SMUSSATO 4 ANGOLI","ARROTONDATO","PILLOLA","SQUADRATO",
+        "ESAGONALE ⟨ ⟩","PARALLELOGRAMMA ▱","LINGUETTA (1 angolo)"};
+    private static String shapeCache;private static long shapeAt;
+    public static String shape(Context c){
+        long n=android.os.SystemClock.uptimeMillis();
+        if(shapeCache==null||n-shapeAt>3000){shapeCache=Prefs.get(c).s("button_shape","chamfer");shapeAt=n;}return shapeCache;
+    }
+    public static void resetShape(){shapeCache=null;}
+
+    /** Builds the outline of a control for the chosen shape. k = corner size. */
+    public static void shapePath(Path p,String shape,float l,float t,float r,float b,float k){
+        p.reset();float h=b-t,w=r-l;k=Math.min(k,Math.min(w,h)/2f);
+        switch(shape){
+            case "rounded":p.addRoundRect(new RectF(l,t,r,b),k,k,Path.Direction.CW);break;
+            case "pill":p.addRoundRect(new RectF(l,t,r,b),h/2f,h/2f,Path.Direction.CW);break;
+            case "square":p.addRect(l,t,r,b,Path.Direction.CW);break;
+            case "double":p.moveTo(l+k,t);p.lineTo(r-k,t);p.lineTo(r,t+k);p.lineTo(r,b-k);p.lineTo(r-k,b);p.lineTo(l+k,b);p.lineTo(l,b-k);p.lineTo(l,t+k);p.close();break;
+            case "hex":{float e=Math.min(h/2f,w/4f);p.moveTo(l+e,t);p.lineTo(r-e,t);p.lineTo(r,t+h/2f);p.lineTo(r-e,b);p.lineTo(l+e,b);p.lineTo(l,t+h/2f);p.close();break;}
+            case "slant":{float e=Math.min(h*.35f,w/5f);p.moveTo(l+e,t);p.lineTo(r,t);p.lineTo(r-e,b);p.lineTo(l,b);p.close();break;}
+            case "tab":p.moveTo(l+k,t);p.lineTo(r,t);p.lineTo(r,b);p.lineTo(l,b);p.lineTo(l,t+k);p.close();break;
+            default:p.moveTo(l+k,t);p.lineTo(r,t);p.lineTo(r,b-k);p.lineTo(r-k,b);p.lineTo(l,b);p.lineTo(l,t+k);p.close();
+        }
+    }
+
     /** Cyberpunk panel: chamfered corners, translucent fill, neon edge, corner ticks. */
     public static final class NeonPanel extends Drawable {
         private final Paint fill=new Paint(Paint.ANTI_ALIAS_FLAG),edge=new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Path path=new Path();
         private final Theme th;private final int edgeColor;private final float fillAlpha;
-        public boolean scan=false;public float cut=dpf(10);
+        public boolean scan=false;public float cut=dpf(10);public String shape;
         public NeonPanel(Theme th,int edgeColor,float fillAlpha){
-            this.th=th;this.edgeColor=edgeColor;this.fillAlpha=fillAlpha;
+            this.th=th;this.shape=th.shape;this.edgeColor=edgeColor;this.fillAlpha=fillAlpha;
             edge.setStyle(Paint.Style.STROKE);edge.setStrokeWidth(dpf(1.2f));
         }
         @Override public void draw(Canvas c){
             Rect b=getBounds();if(b.isEmpty())return;
             float l=b.left+1,t=b.top+1,r=b.right-1,bo=b.bottom-1,k=Math.min(cut,Math.min(b.width(),b.height())/3f);
-            path.reset();path.moveTo(l+k,t);path.lineTo(r,t);path.lineTo(r,bo-k);path.lineTo(r-k,bo);
-            path.lineTo(l,bo);path.lineTo(l,t+k);path.close();
+            String shp=shape!=null?shape:"chamfer";
+            shapePath(path,shp,l,t,r,bo,("rounded".equals(shp)?Math.max(k,dpf(th.round*.6f)):k));
             if(th.isGlass){
                 fill.setShader(new LinearGradient(0,t,0,bo,Theme.a(th.panel2,(int)(255*fillAlpha)),
                     Theme.a(th.panel,(int)(220*fillAlpha)),Shader.TileMode.CLAMP));
@@ -78,6 +103,7 @@ public final class Ui {
                 for(float y=t;y<bo;y+=dpf(3))c.drawRect(l,y,r,y+dpf(1),fill);
             }
             edge.setColor(Theme.a(edgeColor,150));edge.setStrokeWidth(dpf(1));c.drawPath(path,edge);
+            if(!"chamfer".equals(shp)&&!"tab".equals(shp)&&!"double".equals(shp))return;
             edge.setColor(edgeColor);edge.setStrokeWidth(dpf(2.2f));
             float m=dpf(14);
             c.drawLine(l+k,t,l+k+m,t,edge);c.drawLine(r-k,bo,r-k-m,bo,edge);

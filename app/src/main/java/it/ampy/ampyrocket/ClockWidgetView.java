@@ -29,6 +29,7 @@ public final class ClockWidgetView extends View {
 
     public ClockWidgetView(Context c,Theme th,boolean big){
         super(c);this.th=th;this.big=big;bg=new Ui.NeonPanel(th,th.accent,.42f);bg.scan=true;
+        time.spreadMs=date.spreadMs=(int)Anim.ms(c,"glitch");
         setOnClickListener(v->{Ui.tick(v);try{getContext().startActivity(new Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));}catch(Throwable ignored){}});
     }
     @Override protected void onAttachedToWindow(){super.onAttachedToWindow();update();post(tick);}

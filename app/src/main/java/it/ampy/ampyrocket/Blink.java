@@ -18,10 +18,10 @@ public final class Blink extends Drawable implements Runnable {
 
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);private final Theme th;private final int color;
     private boolean continuous;private long burstUntil=0;private final int period;private final boolean enabled,allowContinuous;
-    private final float radius;
+    private final float radius;private final Path path=new Path();private final String shape;
 
     public Blink(Context c,Theme th,int color,boolean continuous,float radiusDp){
-        this.th=th;this.color=color;this.continuous=continuous;this.radius=Ui.dpf(radiusDp);
+        this.th=th;this.color=color;this.continuous=continuous;this.radius=Ui.dpf(radiusDp);this.shape=th.shape;
         Prefs pr=Prefs.get(c);period=Math.max(40,pr.i("blink_period_ms",250));String mode=pr.s("blink_mode","selected");
         enabled=!"off".equals(mode);allowContinuous="selected".equals(mode)&&Power.level(c)!=Power.MAX;
     }
@@ -35,13 +35,15 @@ public final class Blink extends Drawable implements Runnable {
     @Override public void draw(Canvas c){
         if(!active())return;
         long t=SystemClock.uptimeMillis();boolean on=(t/period)%2==0;
-        Rect b=getBounds();RectF r=new RectF(b);r.inset(Ui.dpf(1.5f),Ui.dpf(1.5f));
+        Rect b=getBounds();float in=Ui.dpf(1.5f);
+        Ui.shapePath(path,shape,b.left+in,b.top+in,b.right-in,b.bottom-in,Math.max(radius,Ui.dpf(10)));
         if(on){
-            p.setStyle(Paint.Style.FILL);p.setColor(Theme.a(color,58));c.drawRoundRect(r,radius,radius,p);
-            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Ui.dpf(2.2f));p.setColor(color);c.drawRoundRect(r,radius,radius,p);
-            p.setStrokeWidth(Ui.dpf(1));p.setColor(Theme.a(0xffffffff,120));r.inset(Ui.dpf(3),Ui.dpf(3));c.drawRoundRect(r,radius,radius,p);
+            p.setStyle(Paint.Style.FILL);p.setColor(Theme.a(color,58));c.drawPath(path,p);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Ui.dpf(2.2f));p.setColor(color);c.drawPath(path,p);
+            float i2=in+Ui.dpf(3);Ui.shapePath(path,shape,b.left+i2,b.top+i2,b.right-i2,b.bottom-i2,Math.max(radius,Ui.dpf(10))-Ui.dpf(3));
+            p.setStrokeWidth(Ui.dpf(1));p.setColor(Theme.a(0xffffffff,120));c.drawPath(path,p);
         }else{
-            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Ui.dpf(1.2f));p.setColor(Theme.a(color,90));c.drawRoundRect(r,radius,radius,p);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Ui.dpf(1.2f));p.setColor(Theme.a(color,90));c.drawPath(path,p);
         }
         scheduleSelf(this,t-(t%period)+period);
     }

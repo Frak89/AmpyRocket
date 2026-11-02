@@ -42,7 +42,13 @@ public final class SettingsActivity extends Activity {
         if(Build.VERSION.SDK_INT>=33)perm("Notifiche (servizio lockscreen)",Perms.notifications(this),()->requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS},5));
 
         section("01 / LOOK");
-        choice("Tema",Theme.NAMES,Theme.KEYS,"theme","cyberpunk");
+        int tsel=Math.max(0,Arrays.asList(Theme.KEYS).indexOf(pr.theme()));
+        row("Tema",null,Theme.NAMES[tsel],th.accent,()->CyberMenu.choose(this,th,"Tema",Theme.NAMES,tsel,i->{
+            if("custom".equals(Theme.KEYS[i])&&!pr.raw().contains("col_accent"))Theme.seed(pr,Theme.load(this));
+            pr.put("theme",Theme.KEYS[i]);bump();build();}));
+        int ssel=Math.max(0,Arrays.asList(Ui.SHAPES).indexOf(pr.s("button_shape","chamfer")));
+        row("Forma dei pulsanti e pannelli",null,Ui.SHAPE_NAMES[ssel],th.accent,()->CyberMenu.choose(this,th,"Forma pulsanti",Ui.SHAPE_NAMES,ssel,i->{
+            pr.put("button_shape",Ui.SHAPES[i]);Ui.resetShape();bump();build();}));
         choice("Sfondo animato",Prefs.BG_NAMES,Prefs.BG,"background","grid");
         toggle("Scanlines CRT","scanlines",true);
         intChoice("Oscuramento sfondo di sistema",new String[]{"0%","20%","35%","45%","60%","75%","90%"},new int[]{0,20,35,45,60,75,90},"wallpaper_dim",45);
@@ -62,18 +68,42 @@ public final class SettingsActivity extends Activity {
         toggle("Barra di ricerca in alto","show_search",true);
         toggle("Badge notifiche sulle icone","badges",true);
 
-        section("02 / VETRO LIQUIDO & BLINK");
+        section("02 / COLORI PERSONALIZZATI (16 BIT · RGB565)");
+        item("Come funziona","Scegli un colore: il tema passa a PERSONALIZZATO. Ogni colore è a 16 bit (5 bit rosso, 6 verde, 5 blu).",()->{});
+        for(String[] sl:Theme.SLOTS){
+            int sc="custom".equals(pr.theme())?Theme.slot(pr,sl[0]):slotOf(th,sl[0]);
+            row(sl[1],null,String.format(Locale.US,"■■ #%06X",sc&0xffffff),sc,()->ColorPicker565.show(this,th,sl[1],sc,v->{
+                if(!"custom".equals(pr.theme())){Theme.seed(pr,th);pr.put("theme","custom");}
+                pr.put(sl[0],v);bump();build();}));
+        }
+        item("Parti da un tema predefinito","Copia i colori di un tema nella tavolozza personalizzata",()->{
+            String[] n=Arrays.copyOf(Theme.NAMES,Theme.NAMES.length-1);
+            CyberMenu.choose(this,th,"Copia colori da",n,-1,i->{Theme.seed(pr,Theme.of(Theme.KEYS[i]));pr.put("theme","custom");bump();build();});});
+
+        section("03 / VETRO LIQUIDO & BLINK");
         choice("Stile menu e finestre",new String[]{"VETRO LIQUIDO (iOS)","PANNELLO NEON"},new String[]{"glass","neon"},"menu_style","glass");
         toggle("Vetro anche su dock e barra di ricerca","glass_bars",true);
         choice("Blink pulsanti",new String[]{"SELEZIONATI + TOCCO","SOLO AL TOCCO","SPENTO"},new String[]{"selected","tap","off"},"blink_mode","selected");
         intChoice("Velocità blink",Blink.PERIOD_NAMES,Blink.PERIODS,"blink_period_ms",250);
 
-        section("03 / BATTERIA");
+        section("04 / BATTERIA");
         intChoice("Modalità energia",Power.NAMES,new int[]{Power.PERF,Power.BAL,Power.MAX},"power_mode",Power.BAL);
         intChoice("Bilanciato: animazioni attive dopo un tocco per",new String[]{"4 secondi","8 secondi","15 secondi","30 secondi"},new int[]{4,8,15,30},"anim_idle_s",8);
         toggle("Risparmio massimo con il risparmio energetico di sistema","follow_saver",true);
 
-        section("04 / EFFETTI");
+        section("05 / TEMPI DELLE ANIMAZIONI");
+        floatChoice("Velocità globale",Anim.SPEED_NAMES,Anim.SPEEDS,"anim_speed",1f);
+        for(Object[] it:Anim.ITEMS){
+            String key="anim_"+it[0];int cur=pr.i(key,(Integer)it[2]);
+            String[] n=new String[Anim.STEPS.length];for(int i=0;i<n.length;i++)n[i]=Anim.STEPS[i]==0?"0 ms · ISTANTANEO":Anim.STEPS[i]+" ms"+(Anim.STEPS[i]==(Integer)it[2]?" · predefinito":"");
+            int sel=0,best=Integer.MAX_VALUE;for(int i=0;i<Anim.STEPS.length;i++){int dd=Math.abs(Anim.STEPS[i]-cur);if(dd<best){best=dd;sel=i;}}
+            final int fs=sel;
+            row((String)it[1],null,cur+" ms",cur==(Integer)it[2]?th.accent:th.warn,()->CyberMenu.choose(this,th,(String)it[1],n,fs,i->{
+                pr.put(key,Anim.STEPS[i]);bump();build();}));
+        }
+        item("Ripristina tempi predefiniti","",()->{for(Object[] it:Anim.ITEMS)pr.raw().edit().remove("anim_"+it[0]).apply();pr.put("anim_speed",1f);bump();build();});
+
+        section("06 / EFFETTI");
         intChoice("Intensità glitch",new String[]{"OFF","LEGGERO","MEDIO","FORTE"},new int[]{0,1,2,3},"glitch_level",2);
         choice("Transizione pagine",Prefs.PAGE_FX_NAMES,Prefs.PAGE_FX,"page_fx","cube");
         choice("Layout card multitasking",Prefs.DECK_FX_NAMES,Prefs.DECK_FX,"deck_fx","flip3d");
@@ -83,19 +113,19 @@ public final class SettingsActivity extends Activity {
         toggle("Prestazioni: limita a 30 fps","eco_fps",false);
         toggle("Vibrazione al tocco","haptics",true);
 
-        section("05 / TASK MANAGER");
+        section("07 / TASK MANAGER");
         toggle("Chiusura reale con Forza arresto automatico (richiede Accessibilità)","force_stop_auto",true);
         toggle("Mostra processi e servizi di sistema","task_system",false);
         toggle("Mostra anche app usate di recente (3 ore)","task_recent",false);
 
-        section("06 / GESTI");
+        section("08 / GESTI");
         choice("Scorri in su",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_up","drawer");
         choice("Scorri in giù",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_down","notifications");
         choice("Doppio tocco",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_double","lock");
         choice("Due dita in su",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_two_up","tasks");
         choice("Due dita in giù",Prefs.ACTION_NAMES,Prefs.ACTIONS,"gesture_two_down","quicksettings");
 
-        section("07 / LOCKSCREEN CUSTOM");
+        section("09 / LOCKSCREEN CUSTOM");
         item("Lockscreen AmpyRocket: "+(pr.lockEnabled()?"ATTIVO":"SPENTO"),"Copertina cyberpunk mostrata all'accensione dello schermo, sopra il blocco di sistema (PIN/impronta restano attivi).",()->{
             boolean on=!pr.lockEnabled();
             if(on&&!Perms.overlay(this)){CyberMenu.notice(this,th,"Permesso necessario","Concedi \"Mostra sopra altre app\" per far comparire il lockscreen quando accendi lo schermo.");
@@ -105,21 +135,21 @@ public final class SettingsActivity extends Activity {
         toggle("Notifiche sul lockscreen","lock_notifications",true);
         item("Anteprima lockscreen","",()->startActivity(new Intent(this,LockScreenActivity.class).putExtra("preview",true)));
 
-        section("08 / APP");
+        section("10 / APP");
         item("App nascoste ("+pr.hidden().size()+")","Tocca per mostrarle di nuovo",this::hiddenApps);
         toggle("Aggiungi alla Home le nuove app","auto_add",true);
         toggle("App suggerite nel drawer","suggestions",true);
         item("Ripristina nomi originali","",()->{for(String k:new ArrayList<>(pr.raw().getAll().keySet()))if(k.startsWith("rename_"))pr.raw().edit().remove(k).apply();
             AppRepository.get(this).reloadAsync();Ui.toast(this,"Nomi ripristinati");});
 
-        section("09 / BACKUP");
+        section("11 / BACKUP");
         item("Esporta layout Home","Salva pagine, dock, cartelle in un file JSON",()->{
             Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/json")
                 .putExtra(Intent.EXTRA_TITLE,"ampyrocket-layout.json");startActivityForResult(i,REQ_EXPORT);});
         item("Importa layout Home","",()->startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*"),REQ_IMPORT));
         item("Ripristina layout predefinito","",()->{pr.put("layout_json",null);pr.put("layout_rev",pr.i("layout_rev",0)+1);Ui.toast(this,"Layout ripristinato");});
 
-        section("10 / INFO");
+        section("12 / INFO");
         item("AmpyRocket 1.0 — Neon Ignition","Launcher cyberpunk della famiglia Ampy (AmpyRAW, AmpyLink).",()->{});
     }
 
@@ -139,7 +169,7 @@ public final class SettingsActivity extends Activity {
             r.addView(v,new LinearLayout.LayoutParams(-2,-2));
             if("[ ON ]".equals(value))Blink.attach(v,th,th.accent,true,4);}
         Blink bl=Blink.attach(r,th,th.accent,false,6);
-        r.setOnClickListener(v->{Ui.tick(v);bl.burst();v.postDelayed(click,140);});
+        r.setOnClickListener(v->{Ui.tick(v);bl.burst();v.postDelayed(click,Anim.ms(this,"menu"));});
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.topMargin=Ui.dp(5);list.addView(r,lp);return r;
     }
     private void item(String t,String s,Runnable r){row(t,s,null,0,r);}
@@ -157,7 +187,13 @@ public final class SettingsActivity extends Activity {
     }
     private void floatChoice(String t,String[] names,float[] vals,String key,float def){
         float cur=pr.f(key,def);int sel=0;for(int i=0;i<vals.length;i++)if(Math.abs(vals[i]-cur)<.01f)sel=i;final int s=sel;
-        row(t,null,names[sel],th.accent,()->CyberMenu.choose(this,th,t,names,s,i->{pr.put(key,vals[i]);build();}));
+        row(t,null,names[sel],th.accent,()->CyberMenu.choose(this,th,t,names,s,i->{pr.put(key,vals[i]);bump();build();}));
+    }
+
+    private void bump(){pr.put("visual_rev",pr.i("visual_rev",0)+1);AppRepository.get(this).clearIconCache();}
+    private static int slotOf(Theme t,String key){
+        switch(key){case "col_accent":return t.accent;case "col_secondary":return t.secondary;case "col_bg":return t.bg;
+            case "col_panel":return t.panel;case "col_fg":return t.fg;default:return t.warn;}
     }
 
     private void hiddenApps(){

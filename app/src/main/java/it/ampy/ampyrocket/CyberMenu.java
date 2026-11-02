@@ -99,7 +99,7 @@ public final class CyberMenu {
             View v=box.getChildAt(i);if(!(v.getTag() instanceof Integer))continue;
             int idx=(Integer)v.getTag();
             v.setOnClickListener(x->{Ui.tick(x);Object bl=x.getTag(R_BLINK);if(bl instanceof Blink)((Blink)bl).burst();
-                x.postDelayed(()->{dismiss.run();actions.get(idx).run();},170);});
+                x.postDelayed(()->{dismiss.run();actions.get(idx).run();},Anim.ms(c,"menu"));});
         }
     }
 

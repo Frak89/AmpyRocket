@@ -40,7 +40,7 @@ public final class LockScreenActivity extends Activity implements BadgeListener.
                 case MotionEvent.ACTION_MOVE:float d=Math.min(0,e.getRawY()-downY);content.setTranslationY(d);content.setAlpha(1+d/(v.getHeight()*.6f));return true;
                 case MotionEvent.ACTION_UP:case MotionEvent.ACTION_CANCEL:
                     if(downY-e.getRawY()>v.getHeight()*.22f)unlock();
-                    else content.animate().translationY(0).alpha(1).setDuration(200).start();return true;
+                    else content.animate().translationY(0).alpha(1).setDuration(Anim.ms(this,"unlock")).start();return true;
             }
             return false;
         });
@@ -49,7 +49,7 @@ public final class LockScreenActivity extends Activity implements BadgeListener.
 
     private void unlock(){
         Ui.buzz(this,20);clock.glitch();bg.pulse();
-        content.animate().translationY(-content.getHeight()).alpha(0).setDuration(220).withEndAction(()->{
+        content.animate().translationY(-content.getHeight()).alpha(0).setDuration(Anim.ms(this,"unlock")).withEndAction(()->{
             KeyguardManager km=(KeyguardManager)getSystemService(KEYGUARD_SERVICE);
             if(km!=null&&km.isKeyguardLocked())km.requestDismissKeyguard(this,null);
             finish();overridePendingTransition(0,android.R.anim.fade_out);

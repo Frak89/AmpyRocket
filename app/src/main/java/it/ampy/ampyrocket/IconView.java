@@ -20,6 +20,7 @@ public final class IconView extends View {
     private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
     private final GlitchTextView.Scrambler sc=new GlitchTextView.Scrambler();
     private final Theme th;private final boolean showLabel;private final float scale;private final String style;
+    private long pressMs=120,pressT=0;
     private int badge=0;private float press=0;private boolean pressed=false;private boolean dimmed=false;
 
     public IconView(Context c,Theme th,boolean showLabel){
@@ -27,6 +28,7 @@ public final class IconView extends View {
         style=pr.s("icon_style","neon");
         tp.setTypeface(Ui.MONO);tp.setTextSize(Ui.dpf(10.5f));tp.setColor(th.fg);tp.setLetterSpacing(.04f);
         tp.setShadowLayer(Ui.dpf(3),0,0,0xff000000);
+        sc.spreadMs=(int)Anim.ms(c,"glitch");pressMs=Anim.ms(c,"icon_press");
         setClickable(true);setLongClickable(true);setHapticFeedbackEnabled(true);
     }
 
@@ -111,8 +113,11 @@ public final class IconView extends View {
             tp.setColor(dimmed?th.muted:th.fg);c.drawText(lab,0,lab.length(),(getWidth()-tw)/2f,ty,tp);
             if(sc.active())postInvalidateOnAnimation();
         }
-        if(pressed&&press<1f){press=Math.min(1f,press+.2f);postInvalidateOnAnimation();}
-        else if(!pressed&&press>0){press=Math.max(0f,press-.12f);postInvalidateOnAnimation();}
+        long nowP=android.os.SystemClock.uptimeMillis();float dt=pressT==0?16:Math.min(64,nowP-pressT);pressT=nowP;
+        float stepP=pressMs<=0?1f:dt/pressMs;
+        if(pressed&&press<1f){press=Math.min(1f,press+stepP);postInvalidateOnAnimation();}
+        else if(!pressed&&press>0){press=Math.max(0f,press-stepP*.7f);postInvalidateOnAnimation();}
+        else pressT=0;
     }
 
     @Override public boolean onTouchEvent(MotionEvent e){
